@@ -1,0 +1,6 @@
+.DS_Store
+a.*
+build
+perf.data
+perf.data.old
+.cache
