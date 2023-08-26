@@ -148,7 +148,7 @@ static int do_inotify_add_watch(Inotify* self, const char *path, u32 mask)
         .data = 0,
         .udata = (void*)(uintptr_t)id,
     };
-    return 0;
+    return fd;
 }
 
 static int do_close(int fd);
@@ -161,7 +161,7 @@ int close(int fd)
     if (!og_close) {
         void* handle = dlsym(RTLD_NEXT, "close");
         if (!handle) {
-            return errno = ENOSYS, -1;
+            return errno=ENOSYS, -1;
         }
         og_close = (int(*)(int))handle;
     }
@@ -181,7 +181,7 @@ typedef struct {
    u32 cookie;
 
    u32 len;
-   char name[PATH_MAX];
+   char name[PATH_MAX + 1];
 } internal_inotify_event;
 
 static ssize_t do_read(int fd, void* buf, size_t size);
@@ -194,7 +194,7 @@ ssize_t read(int fd, void* buf, size_t size)
     if (!og_read) {
         void* handle = dlsym(RTLD_NEXT, "read");
         if (!handle) {
-            return errno = ENOSYS, -1;
+            return errno=ENOSYS, -1;
         }
         og_read = (ssize_t(*)(int, void*, size_t))handle;
     }
@@ -203,6 +203,9 @@ ssize_t read(int fd, void* buf, size_t size)
 
 static ssize_t do_read(int fd, void* buf, size_t size)
 {
+    if (buf == 0 || size < sizeof(struct inotify_event))
+        return errno=EINVAL, -1;
+
     assert(fd & CUSTOM_FD_BIT);
     Inotify* notify = inotify_from_fd(fd);
     struct kevent event = { 0 };
@@ -215,20 +218,29 @@ static ssize_t do_read(int fd, void* buf, size_t size)
     u32 id = (u32)(uintptr_t)event.udata;
     char const* filename = notify->filenames[id];
     u32 filename_size = strlen(filename);
+    int wd = event.ident;
+    u32 mask = IN_MODIFY; // FIXME: Parse event mask.
+    u32 cookie = 0; // FIXME: Implement this.
 
-    internal_inotify_event notify_event = {
-       .wd = fd, // FIXME: Check if this is correct
-       .mask = IN_MODIFY, // FIXME: Parse event mask
-       .cookie = 0, // FIXME: Implement this
-
-       .len = filename_size,
-    };
-    memcpy(notify_event.name, filename, filename_size);
-    notify_event.name[filename_size] = 0;
-
-    if (size > sizeof(internal_inotify_event)) {
-        size = sizeof(internal_inotify_event);
+    if (size - sizeof(struct inotify_event) > filename_size) {
+        internal_inotify_event* ev = buf;
+        *ev = (internal_inotify_event) {
+           .wd = wd,
+           .mask = mask,
+           .cookie = cookie,
+           .len = filename_size,
+        };
+        memcpy(ev->name, filename, filename_size);
+        ev->name[filename_size] = 0;
+        return sizeof(struct inotify_event) + filename_size + 1;
     }
-    memcpy(buf, &notify_event, size);
-    return (ssize_t)size;
+
+    struct inotify_event* ev = buf;
+    *ev = (struct inotify_event) {
+       .wd = wd,
+       .mask = mask,
+       .cookie = cookie,
+       .len = 0,
+    };
+    return 0;
 }
