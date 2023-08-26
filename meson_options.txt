@@ -1,0 +1,1 @@
+option('build-examples', type: 'feature', value: 'disabled')

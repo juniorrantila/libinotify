@@ -10,3 +10,7 @@ project('inotify-polyfill', 'c',
   ])
 
 subdir('src')
+
+if get_option('build-examples').enabled()
+  subdir('examples')
+endif
