@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef uint32_t u32;
+
 _Static_assert(sizeof(u32) == 4, "");
 
 #define CUSTOM_FD_BIT ((u32)(1 << 30))
