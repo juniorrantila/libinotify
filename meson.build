@@ -1,4 +1,4 @@
-project('inotify-polyfill', 'c',
+project('libinotify', 'c',
   version: '0.0.1',
   license: 'BSD 2-Clause',
   meson_version: '>=0.50.0',

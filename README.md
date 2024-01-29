@@ -1,6 +1,6 @@
-# inotify-polyfill
+# libinotify
 
-**inotify-polyfill** enables the linux file watch API on non-linux systems
+**libinotify** enables the linux file watch API on non-linux systems
 
 ## How does this work?
 
